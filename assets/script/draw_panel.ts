@@ -17,14 +17,13 @@ export default class DrawPanel extends cc.Component {
     private board_w: number = 0
     private node_pool: cc.NodePool
     private node_list = [[]]
-    private len: number
+    public len: number
     private start_point: cc.Vec2 = null
     private end_point: cc.Vec2 = null
     private move_direction: number // 1 up 2 down 3 left 4 right
     private offset_x: number  // 内容与边界的偏置值 保持内容在中央
     private offset_y: number
     private temp: cc.Node
-
 
     onLoad () {
         // 初始化并且绘制棋盘
@@ -52,13 +51,12 @@ export default class DrawPanel extends cc.Component {
             c.string = '2'
             this.node_pool.put(b)
         }
-        // console.log(this.node_pool)
         for(let i = 0; i < 2; i++){
-            let b = this.node_pool.get(this)
-            let c = b.getComponent(cc.Label)
-            c.fontSize = this.len / 2
-            c.lineHeight = this.len / 2
-            c.string = '2'
+            let b = this.node_pool.get()
+            // let c = b.getComponent(cc.Label)
+            // c.fontSize = this.len / 2
+            // c.lineHeight = this.len / 2
+            // c.string = '2'
             b.parent = this.node
             let p = this.newIndex()
             this.newPosition(b, p)
@@ -133,17 +131,18 @@ export default class DrawPanel extends cc.Component {
             this.move_direction = 1
         this.start_point = null
         this.end_point = null
-        console.log(this.move_direction)
+        // console.log(this.move_direction)
         // 开始移动棋盘中的所有元素
         this.moveAllNode()
         this.move_direction = null
     }
 
     newNode(){
-        let x = Math.floor(Math.random() * this.colNum),
+        console.log('nd')
+        let x = Math.floor(Math.random() * (this.colNum - 1)),
         x_copy = x
         // console.log(`${x}:`,this.node_list[x].length, this.node_list)
-        let y = Math.floor(Math.random() * this.rowNum)
+        let y = Math.floor(Math.random() * (this.rowNum - 1))
         while(this.node_list[x] && this.node_list[x][y]){
             y++
             if(y >= this.rowNum){
@@ -154,6 +153,8 @@ export default class DrawPanel extends cc.Component {
                 return null
         }
         console.log('new node at', x, y)
+        if(this.node_pool.size() <= 0)
+            this.node_pool.put(cc.instantiate(this.block))
         let p = this.node_pool.get()
         // p.stopAllActions()
         // let p = cc.instantiate(this.block)
@@ -177,7 +178,6 @@ export default class DrawPanel extends cc.Component {
                             index++
                         }
                         let block = this.node_list[j][index + 1]
-                        console.log(block)
                         if(block) {
                             let str = block.getComponent(cc.Label).string
                             if(this.node_list[j][i].getComponent(cc.Label).string == str) {
@@ -186,7 +186,6 @@ export default class DrawPanel extends cc.Component {
                                     let cb = cc.callFunc(function(){
                                         this.node_list[j][index + 1].getComponent(cc.Label).string = (Number(str) * 2).toString()
                                         this.node_pool.put(this.node_list[j][i])
-                                        this.node_list[j][index] = null
                                         this.node_list[j][i] = null
                                         resolve('done')
                                     }, this)
@@ -220,7 +219,6 @@ export default class DrawPanel extends cc.Component {
                                     let cb = cc.callFunc(function(){
                                         this.node_list[j][index - 1].getComponent(cc.Label).string = (Number(str) * 2).toString()
                                         this.node_pool.put(this.node_list[j][i])
-                                        this.node_list[j][index] = null
                                         this.node_list[j][i] = null
                                         resolve('done')
                                     }, this)
@@ -241,11 +239,10 @@ export default class DrawPanel extends cc.Component {
                 for(let j = 0; j < this.rowNum; j++) {
                     if(this.node_list[i][j]){  // 遍历到每个节点时 要进行判断 其前面是否有空间可以移动 如果有就继续前移
                         let index = i
-                        while(!this.node_list[index - 1][j]) {
+                        while(!this.node_list[index - 1] || !this.node_list[index - 1][j]) {
                             if(index == 0) break
                             index--
                         }
-                        console.log(index, j)
                         let block = null
                         if(this.node_list[index - 1] && this.node_list[index - 1][j])
                             block = this.node_list[index - 1][j]
@@ -257,7 +254,6 @@ export default class DrawPanel extends cc.Component {
                                     let cb = cc.callFunc(function(){
                                         this.node_list[index - 1][j].getComponent(cc.Label).string = (Number(str) * 2).toString()
                                         this.node_pool.put(this.node_list[i][j])
-                                        this.node_list[index - 1][j] = null
                                         this.node_list[i][j] = null
                                         resolve('done')
                                     }, this)
@@ -273,18 +269,55 @@ export default class DrawPanel extends cc.Component {
                 }
             } 
         }
+        else if(this.move_direction == 4) { // right
+            for(let i = this.colNum - 1; i >= 0; i--) {
+                for(let j = 0; j < this.rowNum; j++) {
+                    if(this.node_list[i][j]){  // 遍历到每个节点时 要进行判断 其前面是否有空间可以移动 如果有就继续前移
+                        let index = i
+                        while(!this.node_list[index + 1] || !this.node_list[index + 1][j]) {
+                            if(index == this.colNum - 1) break
+                            index++
+                        }
+                        let block = null
+                        if(this.node_list[index + 1] && this.node_list[index + 1][j])
+                            block = this.node_list[index + 1][j]
+                        if(block) {
+                            let str = block.getComponent(cc.Label).string
+                            if(this.node_list[i][j].getComponent(cc.Label).string == str) {
+                                let move = cc.moveTo(0.2, this.indexToPoint([index + 1, j]))
+                                await new Promise((resolve) => {
+                                    let cb = cc.callFunc(function(){
+                                        this.node_list[index + 1][j].getComponent(cc.Label).string = (Number(str) * 2).toString()
+                                        this.node_pool.put(this.node_list[i][j])
+                                        this.node_list[i][j] = null
+                                        resolve('done')
+                                    }, this)
+                                    this.node_list[i][j].runAction(cc.sequence(move, cb))
+                                })
+                            } else {
+                                this.commenMove(j, i, index, 2)
+                            }
+                        } else {
+                            this.commenMove(j, i, index, 2)
+                        }
+                    }
+                }
+            }
+        }
         console.log(this.node_list)
+
         this.newNode()
     }
 
     commenMove(i: number, j: number, index: number, type: number) {
-        if(i == index) return
         if(type == 1) {
+            if(i == index) return
             this.node_list[j][i].runAction(cc.moveTo(0.2, this.indexToPoint([j, index])))
             this.node_list[j][index] = this.node_list[j][i]
             this.node_list[j][i] = null
         }
         else {
+            if(j == index) return
             this.node_list[j][i].runAction(cc.moveTo(0.2, this.indexToPoint([index, i])))
             this.node_list[index][i] = this.node_list[j][i]
             this.node_list[j][i] = null
